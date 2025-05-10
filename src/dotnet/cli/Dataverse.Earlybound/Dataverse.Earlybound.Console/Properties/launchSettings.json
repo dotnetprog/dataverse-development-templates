@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "updateBuilderSettings": {
+      "commandName": "Project",
+      "commandLineArgs": "update-builder-settings --file \"../../../builderSettings.json\" --prefixes \"yourprefix_\"",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      },
+      "distributionName": ""
+    }
+  }
+}

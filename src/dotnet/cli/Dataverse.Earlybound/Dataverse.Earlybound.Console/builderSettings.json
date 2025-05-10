@@ -1,0 +1,22 @@
+{
+  "suppressINotifyPattern": true,
+  "suppressGeneratedCodeAttribute": false,
+  "language": "CS",
+  "namespace": "MyNamespace.Entities",
+  "serviceContextName": "XrmContext",
+  "generateSdkMessages": false,
+  "generateGlobalOptionSets": true,
+  "emitFieldsClasses": true,
+  "entityTypesFolder": "Entities",
+  "messagesTypesFolder": "Messages",
+  "optionSetsTypesFolder": "OptionSets",
+  "entityNamesFilter": [
+    "account",
+    "contact"
+  ],
+  "messageNamesFilter": [
+    "examp_*"
+  ],
+  "emitEntityETC": false,
+  "emitVirtualAttributes": true
+}
