@@ -38,6 +38,8 @@ dotnet run --project DataverseTemplate.ConsoleApp
 To securely store sensitive information like connection strings or API keys, you can use the `dotnet user-secrets` tool. Follow these steps:
 
 ```bash
+# Move to folder which holds this file: DataverseTemplate.ConsoleApp.csproj
+cd ./DataverseTemplate.ConsoleApp/DataverseTemplate.ConsoleApp
 # Set your service princpal client id
 dotnet user-secrets set "Dataverse:ClientId" "<your-client-id>" --project DataverseTemplate.ConsoleApp
 
