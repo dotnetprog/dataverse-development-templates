@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "WhoAmICommand": {
+      "commandName": "Project",
+      "commandLineArgs": "whoami",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
