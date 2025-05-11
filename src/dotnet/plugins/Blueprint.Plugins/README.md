@@ -78,6 +78,10 @@ pac plugin push --pluginFile "bin\Debug\plugins.1.0.0.nupkg" --environment <ENVI
 
 Refer to the [Microsoft documentation](https://learn.microsoft.com/en-us/power-platform/developer/cli/reference/plugin#pac-plugin-push) for more details on deploying plugins as NuGet packages.
 
+## Additional Guidelines
+
+For more details on how this project adheres to vertical slicing architecture and SOLID principles, refer to the [Guidelines](./Guideline.md).
+
 ## Contributing
 
 Contributions are welcome! Please follow these steps:
