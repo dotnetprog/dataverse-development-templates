@@ -4,6 +4,7 @@
     {
         PreValidation = 10,
         PreOperation = 20,
+        CoreOperation = 30,
         PostOperation = 40
     }
 }

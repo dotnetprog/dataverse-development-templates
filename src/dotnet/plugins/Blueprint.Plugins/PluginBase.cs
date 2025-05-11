@@ -56,6 +56,10 @@ namespace Blueprint.Plugins
                 );
         }
         protected Collection<Step> RegisteredEvents { get; private set; }
+        protected void AddStep(string EntityName, Stage stage, Message message, ExecutionMode executionMode, Action<ILocalPluginContext> action)
+        {
+            this.RegisteredEvents.Add(new Step(stage, message, EntityName, executionMode, action));
+        }
         /// <summary>
         /// Main entry point for he business logic that the plug-in is to execute.
         /// </summary>

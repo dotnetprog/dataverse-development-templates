@@ -5,7 +5,6 @@
         Update,
         Create,
         Delete,
-        boost_ConvertToOrder,
-        boost_ReviseSalesOrder
+        sample_customapiname
     }
 }
