@@ -1,0 +1,6 @@
+@DataverseTemplates.Web.MicroserviceApi_HostAddress = http://localhost:5199
+
+GET {{DataverseTemplates.Web.MicroserviceApi_HostAddress}}/whoami/
+Accept: application/json
+
+###
