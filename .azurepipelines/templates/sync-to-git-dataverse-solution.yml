@@ -1,0 +1,175 @@
+parameters:
+  - name: PowerPlatformServiceConnection
+    type: string
+  - name: EnvironmentUrl
+    type: string
+  - name: solutionFolderPattern
+    type: string
+    default: 'src/{0}/unpack'
+  - name: solutionCheckerFolder
+    type: string
+    default: 'src/checker-results'
+  - name: solutionFilePattern
+    type: string
+    default: 'src/{0}/{0}.zip'
+  - name: solutionList
+    type: object
+    default:
+      - Solution1
+      - Solution2
+  - name: enableSolutionChecker
+    type: boolean
+    default: false
+  - name: publishSarifResults
+    type: boolean
+    default: false
+  - name: exportData
+    type: boolean
+    default: false
+  - name: exportDataFolder
+    type: string
+    default: 'src/data'
+  - name: exportSchemaFile
+    type: string
+    default: 'src/data/data_schema.xml'
+  - name: commitComment
+    type: string
+    default: 'chore: sync Dataverse solutions'
+
+stages:
+
+  - stage: SyncToGit
+    displayName: 'Sync Solutions to Git'
+    jobs:
+      - ${{ if eq(parameters.exportData, true) }}:
+        - job: ExportData
+          displayName: 'Export Data from Dataverse'
+          steps:
+            - checkout: self
+              persistCredentials: true
+            - task: PowerPlatformToolInstaller@2
+              displayName: 'Install Power Platform Tools'
+              inputs:
+                AddToolsToPath: true
+            - task: UseDotNet@2
+              displayName: 'Install .NET 8 SDK'
+              inputs:
+                packageType: 'sdk'
+                version: '8.0.x'
+            - task: DotNetCoreCLI@2
+              displayName: 'Install DCM Tool'
+              inputs:   
+                command: 'custom'
+                custom: 'tool'
+                arguments: 'install --global Dataverse.ConfigurationMigrationTool.Console'
+
+            - task: PowerPlatformSetConnectionVariables@2
+              displayName: 'Set Dataverse Connection Variables'
+              name: dataverseConnection
+              inputs:
+                authenticationType: 'PowerPlatformSPN'
+                PowerPlatformSPN: ${{ parameters.PowerPlatformServiceConnection }}
+                Environment: ${{ parameters.EnvironmentUrl }}
+
+            - script: |
+                dcm export-data --schema ${{ parameters.exportSchemaFile }} \
+                 --output ${{ parameters.exportDataFolder }}/data.xml \
+                 --enable-empty-fields --Dataverse:Url ${{ parameters.EnvironmentUrl }} \
+                 --Dataverse:ClientId $(dataverseConnection.BuildTools.ApplicationId) \
+                 --Dataverse:ClientSecret "$(dataverseConnection.BuildTools.ClientSecret)" \
+                 --Dataverse:TenantId $(dataverseConnection.BuildTools.TenantId)
+              displayName: 'Export Data from Dataverse'
+            - script: |
+                git config user.email "$(Build.RequestedForEmail)"
+                git config user.name "$(Build.RequestedFor)"
+                git add --all
+                git diff --cached --quiet || git commit -m "${{ parameters.commitComment }} - Data - [skip ci]"
+                git push origin HEAD:$(Build.SourceBranch)
+              displayName: 'Commit and Push Changes'
+      - ${{ if ne(length(parameters.solutionList), 0) }}:
+        - job: SyncToGit
+          displayName: 'Sync Solutions to Git'
+          steps:
+            - checkout: self
+              persistCredentials: true
+            - task: PowerPlatformToolInstaller@2
+              displayName: 'Install Power Platform Tools'
+              inputs:
+                AddToolsToPath: true
+            - task: PowerPlatformSetConnectionVariables@2
+              displayName: 'Set Dataverse Connection Variables'
+              name: dataverseConnection
+              inputs:
+                authenticationType: 'PowerPlatformSPN'
+                PowerPlatformSPN: ${{ parameters.PowerPlatformServiceConnection }}
+                Environment: ${{ parameters.EnvironmentUrl }}
+            #- script: |
+            #    pac auth create --name SPN --applicationId $(dataverseConnection.BuildTools.ApplicationId) --clientSecret "$(dataverseConnection.BuildTools.ClientSecret)" --tenant $(dataverseConnection.BuildTools.TenantId)
+            #  displayName: 'Create PAC Auth for Dataverse'
+            - task: PowerPlatformWhoAmi@2
+              displayName: 'Dataverse Test Connectivity'
+              inputs:
+                authenticationType: 'PowerPlatformSPN'
+                PowerPlatformSPN: ${{ parameters.PowerPlatformServiceConnection }}
+                Environment: ${{ parameters.EnvironmentUrl }}
+            - ${{ if eq(parameters.enableSolutionChecker, true) }}:
+              - task: DeleteFiles@1
+                displayName: 'Delete Existing Solution Checker Results'
+                inputs:
+                  SourceFolder: ${{ parameters.solutionCheckerFolder }} 
+                  Contents: '**/*' 
+            - ${{ each solution in parameters.solutionList }}:
+              - task: PowerPlatformExportSolution@2
+                displayName: 'Export Solution ${{ solution }}'
+                inputs:
+                  authenticationType: PowerPlatformSPN
+                  PowerPlatformSPN: ${{ parameters.PowerPlatformServiceConnection }}
+                  Environment: ${{ parameters.EnvironmentUrl }}
+                  SolutionName: ${{ solution }}
+                  SolutionOutputFile: ${{ format(parameters.solutionFilePattern, solution) }}
+                  Managed: false
+                  AsyncOperation: true
+                  OverwriteLocalSolution: true
+              - script: |
+                  pac solution unpack -z "${{ format(parameters.solutionFilePattern, solution) }}" -f "${{ format(parameters.solutionFolderPattern, solution) }}" -ad -aw -p Unmanaged
+                displayName: 'Unpack Solution ${{ solution }}'
+              - ${{ if eq(parameters.enableSolutionChecker, true) }}:
+                
+                - script: |
+                    pac auth create --name SPN --applicationId $(dataverseConnection.BuildTools.ApplicationId) --clientSecret "$(dataverseConnection.BuildTools.ClientSecret)" --tenant $(dataverseConnection.BuildTools.TenantId)
+                    pac solution check --path "${{ format(parameters.solutionFilePattern, solution) }}" \
+                     -g Canada \
+                     -o "${{ parameters.solutionCheckerFolder }}"
+                  continueOnError: true
+                  displayName: 'Run Solution Checker for ${{ solution }}'
+            
+            - ${{ if eq(parameters.enableSolutionChecker, true) }}:
+              - task: ExtractFiles@1
+                displayName: 'Extract Solution Checker Results From Zip Files'
+                inputs:
+                  archiveFilePatterns: '${{ parameters.solutionCheckerFolder }}/*.zip' # string. Required. Archive file patterns. Default: **/*.zip.
+                  destinationFolder: ${{ parameters.solutionCheckerFolder }} # string. Required. Destination folder. 
+                  cleanDestinationFolder: false # boolean. Clean destination folder before extracting. Default: true.
+                  overwriteExistingFiles: true # boolean. Overwrite existing files. Default: false.
+              - task: DeleteFiles@1
+                displayName: 'Delete Existing Solution Checker Results Zip Files'
+                inputs:
+                  SourceFolder: ${{ parameters.solutionCheckerFolder }} 
+                  Contents: '**/*.zip'
+            - ${{ if and(eq(parameters.enableSolutionChecker, true), eq(parameters.publishSarifResults, true)) }}:     
+              - task: AdvancedSecurity-Publish@1
+                displayName: 'Publish SARIF Results'
+                inputs:
+                  SarifsInputDirectory: $(Build.SourcesDirectory)/src 
+                  EnableRecursiveScanning: true # boolean. Enable Recursive Scanning. Default: false.
+                  Category: Dataverse 
+                  WaitForProcessing: true # boolean. Enable Wait for Processing. Default: false.
+                  #WaitForProcessingInterval: '5' # string. Optional. Use when WaitForProcessing = true. Wait for Processing Time Interval. Default: 5.
+                  #WaitForProcessingTimeout: '120' # string. Optional. Use when WaitForProcessing = true. Wait for Processing Timeout. Default: 120.
+            - script: |
+                git config user.email "$(Build.RequestedForEmail)"
+                git config user.name "$(Build.RequestedFor)"
+                git add --all
+                git diff --cached --quiet || git commit -m "${{ parameters.commitComment }} [skip ci]"
+                git push origin HEAD:$(Build.SourceBranch)
+              displayName: 'Commit and Push Changes'
