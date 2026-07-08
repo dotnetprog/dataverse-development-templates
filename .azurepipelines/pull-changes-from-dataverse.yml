@@ -1,0 +1,40 @@
+parameters:
+  - name: p_solutionList
+    displayName: 'Liste des solutions à synchroniser, mettre [] pour ne pas synchroniser de solution'
+    type: object
+    default:
+      - ProIngredients_CustomerService
+      - ProIngredientsDefaultSolution
+      - ProIngSageIntegration
+  - name: p_enableSolutionChecker
+    displayName: 'Activer le vérificateur de solution pour les solutions synchronisées'
+    type: boolean
+    default: true
+  - name: p_exportData
+    displayName: 'Exporter les données de Dataverse'
+    type: boolean
+    default: false
+  - name: p_commitComment
+    displayName: 'Commentaire du commit pour la synchronisation des solutions'
+    type: string
+    default: |
+       **Mettre un commentaire de commit pour 
+       la synchronisation des solutions**
+
+trigger: none
+
+name: 'PullChangesFromDataverse_$(Date:yyyyMMdd)$(Rev:.r)'
+
+stages:
+  - template: templates/sync-to-git-dataverse-solution.yml
+    parameters:
+      PowerPlatformServiceConnection: 'proing-dev'
+      EnvironmentUrl: 'https://proingredients-dev.crm3.dynamics.com'
+      solutionList: ${{ parameters.p_solutionList }}
+      solutionFolderPattern: 'src/{0}/unpack'
+      solutionFilePattern: 'src/{0}/{0}.zip'
+      enableSolutionChecker: ${{ parameters.p_enableSolutionChecker }}
+      exportData: ${{ parameters.p_exportData }}
+      commitComment: ${{ parameters.p_commitComment }}
+      solutionCheckerFolder: 'src/checker-results'
+      publishSarifResults: false
